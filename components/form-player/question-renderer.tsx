@@ -1,0 +1,367 @@
+'use client'
+
+import { useState, useRef } from 'react'
+import { QuestionConfig, ThemeConfig, Json } from '@/lib/database.types'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { motion } from 'framer-motion'
+import { Star, Upload, Check, X, FileText, Image as ImageIcon } from 'lucide-react'
+
+interface QuestionRendererProps {
+  question: QuestionConfig
+  value: Json
+  onChange: (value: Json) => void
+  theme: ThemeConfig
+  error?: string
+  onSubmit: (skipValidation?: boolean) => void
+}
+
+export function QuestionRenderer({ 
+  question, 
+  value, 
+  onChange, 
+  theme,
+  error,
+  onSubmit 
+}: QuestionRendererProps) {
+  const [isFocused, setIsFocused] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const inputStyles = {
+    borderColor: error ? '#EF4444' : isFocused ? theme.primaryColor : `${theme.textColor}30`,
+    color: theme.textColor,
+    backgroundColor: 'transparent',
+  }
+
+  switch (question.type) {
+    case 'short_text':
+    case 'email':
+    case 'phone':
+    case 'url':
+    case 'number':
+      return (
+        <Input
+          type={question.type === 'number' ? 'number' : question.type === 'email' ? 'email' : 'text'}
+          value={String(value || '')}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          placeholder={question.placeholder || 'Type your answer here...'}
+          className="text-xl md:text-2xl h-auto py-3 px-0 border-0 border-b-2 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:opacity-40"
+          style={inputStyles}
+          autoFocus
+        />
+      )
+
+    case 'long_text':
+      return (
+        <Textarea
+          value={String(value || '')}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          placeholder={question.placeholder || 'Type your answer here...'}
+          className="text-lg md:text-xl min-h-[150px] p-4 border-2 rounded-xl bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:opacity-40 resize-none"
+          style={inputStyles}
+          autoFocus
+        />
+      )
+
+    case 'date':
+      return (
+        <Input
+          type="date"
+          value={String(value || '')}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className="text-xl md:text-2xl h-auto py-3 px-0 border-0 border-b-2 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+          style={inputStyles}
+          autoFocus
+        />
+      )
+
+    case 'multiple_choice':
+      return (
+        <div className="space-y-3">
+          {(question.options || []).map((option, index) => {
+            const isSelected = value === option
+            return (
+              <motion.button
+                key={index}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => {
+                  onChange(option)
+                  // Auto-advance after selection, skip validation since we just selected
+                  setTimeout(() => onSubmit(true), 300)
+                }}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all"
+                style={{
+                  borderColor: isSelected ? theme.primaryColor : `${theme.textColor}20`,
+                  backgroundColor: isSelected ? `${theme.primaryColor}10` : 'transparent',
+                  color: theme.textColor,
+                }}
+              >
+                <div 
+                  className="w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
+                  style={{ 
+                    borderColor: isSelected ? theme.primaryColor : `${theme.textColor}40`,
+                    backgroundColor: isSelected ? theme.primaryColor : 'transparent',
+                  }}
+                >
+                  {isSelected ? (
+                    <Check className="w-4 h-4" style={{ color: theme.backgroundColor }} />
+                  ) : (
+                    <span className="text-sm font-medium" style={{ color: theme.textColor }}>
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                  )}
+                </div>
+                <span className="text-lg">{option}</span>
+              </motion.button>
+            )
+          })}
+        </div>
+      )
+
+    case 'multi_select':
+      const selectedValues = Array.isArray(value) ? value : []
+      return (
+        <div className="space-y-3">
+          {(question.options || []).map((option, index) => {
+            const isSelected = selectedValues.includes(option)
+            return (
+              <motion.button
+                key={index}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => {
+                  const newValues = isSelected
+                    ? selectedValues.filter(v => v !== option)
+                    : [...selectedValues, option]
+                  onChange(newValues)
+                }}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all"
+                style={{
+                  borderColor: isSelected ? theme.primaryColor : `${theme.textColor}20`,
+                  backgroundColor: isSelected ? `${theme.primaryColor}10` : 'transparent',
+                  color: theme.textColor,
+                }}
+              >
+                <div 
+                  className="w-8 h-8 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors"
+                  style={{ 
+                    borderColor: isSelected ? theme.primaryColor : `${theme.textColor}40`,
+                    backgroundColor: isSelected ? theme.primaryColor : 'transparent',
+                  }}
+                >
+                  {isSelected ? (
+                    <Check className="w-4 h-4" style={{ color: theme.backgroundColor }} />
+                  ) : (
+                    <span className="text-sm font-medium" style={{ color: theme.textColor }}>
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                  )}
+                </div>
+                <span className="text-lg">{option}</span>
+              </motion.button>
+            )
+          })}
+          <p className="text-sm opacity-50 mt-2" style={{ color: theme.textColor }}>
+            Select all that apply
+          </p>
+        </div>
+      )
+
+    case 'yes_no':
+      return (
+        <div className="flex gap-4">
+          {['Yes', 'No'].map((option) => {
+            const isSelected = value === option
+            return (
+              <motion.button
+                key={option}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  onChange(option)
+                  setTimeout(() => onSubmit(true), 300)
+                }}
+                className="flex-1 flex items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all"
+                style={{
+                  borderColor: isSelected ? theme.primaryColor : `${theme.textColor}20`,
+                  backgroundColor: isSelected ? `${theme.primaryColor}10` : 'transparent',
+                  color: theme.textColor,
+                }}
+              >
+                <div 
+                  className="w-8 h-8 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors"
+                  style={{ 
+                    borderColor: isSelected ? theme.primaryColor : `${theme.textColor}40`,
+                    backgroundColor: isSelected ? theme.primaryColor : 'transparent',
+                  }}
+                >
+                  {isSelected ? (
+                    <Check className="w-4 h-4" style={{ color: theme.backgroundColor }} />
+                  ) : (
+                    <span className="text-sm font-medium" style={{ color: theme.textColor }}>
+                      {option[0]}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xl font-medium">{option}</span>
+              </motion.button>
+            )
+          })}
+        </div>
+      )
+
+    case 'rating':
+      const maxRating = question.maxValue || 5
+      const currentRating = typeof value === 'number' ? value : 0
+      return (
+        <div className="flex gap-2">
+          {Array.from({ length: maxRating }).map((_, index) => {
+            const starValue = index + 1
+            const isActive = starValue <= currentRating
+            return (
+              <motion.button
+                key={index}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => onChange(starValue)}
+                className="p-1"
+              >
+                <Star
+                  className="w-10 h-10 md:w-12 md:h-12 transition-colors"
+                  fill={isActive ? theme.primaryColor : 'transparent'}
+                  style={{ 
+                    color: isActive ? theme.primaryColor : `${theme.textColor}30`,
+                  }}
+                />
+              </motion.button>
+            )
+          })}
+        </div>
+      )
+
+    case 'opinion_scale':
+      const minScale = question.minValue || 1
+      const maxScale = question.maxValue || 10
+      const scaleValue = typeof value === 'number' ? value : null
+      return (
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: maxScale - minScale + 1 }).map((_, index) => {
+            const num = minScale + index
+            const isSelected = scaleValue === num
+            return (
+              <motion.button
+                key={num}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  onChange(num)
+                  setTimeout(() => onSubmit(true), 300)
+                }}
+                className="w-12 h-12 md:w-14 md:h-14 rounded-xl border-2 flex items-center justify-center text-lg font-medium transition-all"
+                style={{
+                  borderColor: isSelected ? theme.primaryColor : `${theme.textColor}30`,
+                  backgroundColor: isSelected ? theme.primaryColor : 'transparent',
+                  color: isSelected ? theme.backgroundColor : theme.textColor,
+                }}
+              >
+                {num}
+              </motion.button>
+            )
+          })}
+        </div>
+      )
+
+    case 'file_upload':
+      const fileValue = value as { name: string; url: string; type: string } | null
+      return (
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) {
+                // For now, store file info (actual upload would need R2 integration)
+                const reader = new FileReader()
+                reader.onload = () => {
+                  onChange({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    data: reader.result as string,
+                  })
+                }
+                reader.readAsDataURL(file)
+              }
+            }}
+          />
+          
+          {fileValue ? (
+            <div 
+              className="p-4 rounded-xl border-2 flex items-center gap-4"
+              style={{ borderColor: theme.primaryColor }}
+            >
+              <div 
+                className="w-12 h-12 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: `${theme.primaryColor}20` }}
+              >
+                {fileValue.type?.startsWith('image/') ? (
+                  <ImageIcon className="w-6 h-6" style={{ color: theme.primaryColor }} />
+                ) : (
+                  <FileText className="w-6 h-6" style={{ color: theme.primaryColor }} />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate" style={{ color: theme.textColor }}>
+                  {fileValue.name}
+                </p>
+              </div>
+              <button
+                onClick={() => onChange(null)}
+                className="p-2 rounded-lg hover:bg-opacity-10"
+                style={{ color: theme.textColor }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full p-8 rounded-xl border-2 border-dashed flex flex-col items-center gap-3 transition-colors"
+              style={{ 
+                borderColor: `${theme.textColor}30`,
+                color: theme.textColor,
+              }}
+            >
+              <Upload className="w-8 h-8 opacity-50" />
+              <div className="text-center">
+                <p className="font-medium">Click to upload</p>
+                <p className="text-sm opacity-50 mt-1">
+                  Images & PDFs up to {question.maxFileSize || 10}MB
+                </p>
+              </div>
+            </motion.button>
+          )}
+        </div>
+      )
+
+    default:
+      return (
+        <p style={{ color: theme.textColor }} className="opacity-50">
+          Unsupported question type: {question.type}
+        </p>
+      )
+  }
+}
+

@@ -1,0 +1,82 @@
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Plus, FileText } from 'lucide-react'
+import { Form } from '@/lib/database.types'
+import { FormCard } from '@/components/dashboard/form-card'
+
+export const dynamic = 'force-dynamic'
+
+export default async function DashboardPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  const { data: formsData } = await supabase
+    .from('forms')
+    .select('*')
+    .eq('user_id', user!.id)
+    .order('updated_at', { ascending: false })
+
+  const forms = (formsData || []) as Form[]
+
+  // Get response counts for each form
+  const formIds = forms.map(f => f.id)
+  const { data: responseCounts } = formIds.length > 0 
+    ? await supabase
+        .from('responses')
+        .select('form_id')
+        .in('form_id', formIds)
+    : { data: [] }
+
+  const responseCountMap = new Map<string, number>()
+  responseCounts?.forEach((r: { form_id: string }) => {
+    const count = responseCountMap.get(r.form_id) || 0
+    responseCountMap.set(r.form_id, count + 1)
+  })
+
+  return (
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">My Forms</h1>
+          <p className="text-gray-600 mt-1">Create and manage your forms</p>
+        </div>
+        <Link href="/forms/new">
+          <Button className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Form
+          </Button>
+        </Link>
+      </div>
+
+      {forms.length === 0 ? (
+        <Card className="p-16 text-center border-dashed border-2 border-violet-200/60 bg-gradient-to-br from-white via-violet-50/30 to-cyan-50/30">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-violet-100 to-cyan-100 flex items-center justify-center shadow-lg shadow-violet-500/10">
+            <FileText className="w-10 h-10 text-violet-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Create your first form</h2>
+          <p className="text-gray-600 mb-8 max-w-md mx-auto leading-relaxed">
+            Build beautiful, engaging forms that people actually want to fill out. One question at a time.
+          </p>
+          <Link href="/forms/new">
+            <Button size="lg" className="bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-700 hover:to-cyan-700 shadow-lg shadow-violet-500/25">
+              <Plus className="w-5 h-5 mr-2" />
+              Create your first form
+            </Button>
+          </Link>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {forms.map((form) => (
+            <FormCard 
+              key={form.id} 
+              form={form} 
+              responseCount={responseCountMap.get(form.id) || 0} 
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
